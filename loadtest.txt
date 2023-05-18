@@ -1,0 +1,50 @@
+import { chromium } from 'k6/experimental/browser'
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
+import { check } from 'k6'
+import http from 'k6/http'
+
+export const options = {
+  scenarios: {
+    browser: {
+      executor: 'constant-vus',
+      exec: 'browserTest',
+      vus: 10,
+      duration: '1m'
+    },
+    protocol: {
+      executor: 'constant-vus',
+      exec: 'protocolTest',
+      vus: 100,
+      duration: '30s'
+    }
+  }
+}
+
+export async function browserTest() {
+   const browser = chromium.launch({ headless: true})
+   const page = browser.newPage();
+
+   await page.goto('https://developer.verisign.com/request')
+
+   const submit = page.locator('//*[@id="request-form-button"]')
+   submit.click();
+
+   page.close();
+   browser.close();
+}
+
+export async function protocolTest() {
+  const res = http.get('https://developer.verisign.com/devhub/rest/pub/countries')
+  check(res, {
+    'status is 200': res => res.status === 200
+  })
+
+}
+
+export function handleSummary(data) {
+  return {
+    "result3.html": htmlReport(data),
+    stdout: textSummary(data, { indent: " ", enableColors: true }),
+  };
+}
